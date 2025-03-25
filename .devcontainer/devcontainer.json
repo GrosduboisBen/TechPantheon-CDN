@@ -1,0 +1,31 @@
+{
+  "name": "CDN Express Dev",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "cdn",
+  "forwardPorts": [3000],
+  "workspaceFolder": "/workspace",
+  "settings": {
+    "editor.formatOnSave": true,
+    "python.defaultInterpreterPath": "/usr/local/bin/python",
+    "terminal.integrated.defaultProfile.linux": "usr/bin/bash",
+    "terminal.integrated.profiles.linux": {
+      "bash": {
+        "path": "/bin/bash"
+      },
+      "zsh": {
+        "path": "/bin/zsh"
+      },
+      "sh": {
+        "path": "/bin/sh"
+      }
+    }
+  },
+  "extensions": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-azuretools.vscode-docker",
+    "eamodio.gitlens" 
+  ],
+  "remoteUser": "node"
+}
+  
