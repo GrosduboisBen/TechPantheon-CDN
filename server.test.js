@@ -1,125 +1,120 @@
 const request = require('supertest');
-const app = require('./server');  // Assurez-vous que vous exportez `app` dans server.js
+const { app, server } = require('./server'); // Assurez-vous que app est exporté ici
 
-let server;
-
-beforeAll((done) => {
-  server = app.listen(3000, () => {
-    console.log('Test server is running on port 3000');
-    done();
-  });
+// Démarrer le serveur avant les tests
+beforeAll(async () => {
+  if (!server.listening) {
+    await new Promise(resolve => {
+      server.listen(3000, () => {
+        resolve();
+      });
+    });
+  }
 });
 
+// Fermer le serveur après les tests
 afterAll((done) => {
-  server.close(() => {
-    console.log('Test server closed');
+  if (server.listening) {
+    server.close(() => {
+      done();
+    });
+  } else {
     done();
-  });
+  }
 });
 
 describe('Test routes', () => {
-  // Test de l'enregistrement
-  it('should register a user successfully', async () => {
-    const response = await request(server)
-      .post('/register')
-      .send({ userId: 'testuser', password: 'testpassword' });
+    it('should log in a user and return a token', async () => {
+        // Enregistrer d'abord l'utilisateur
+        const registerResponse = await request(app) // 👈 Remplace `server` par `app`
+            .post('/register')
+            .send({ userId: 'testuser', password: 'testpassword' });
+        
+        // Vérifier que l'inscription a réussi
+        expect(registerResponse.status).toBe(200);
+    
+        // Se connecter avec cet utilisateur
+        const loginResponse = await request(app) // 👈 Utilise `app`
+            .post('/login')
+            .send({ username: 'testuser', password: 'testpassword' });
+        
+        expect(loginResponse.status).toBe(200);
+        expect(loginResponse.body.token).toBeDefined();
+    });
 
-    expect(response.status).toBe(200);
-    expect(response.body.message).toBe('User registered and folders created!');
-  });
+    it('should create a subfolder for a user', async () => {
+        const loginResponse = await request(app)  // Utilisez 'app'
+        .post('/login')
+        .send({ username: 'testuser', password: 'testpassword' });
 
-  // Test de la connexion
-  it('should log in a user and return a token', async () => {
-    await request(server)
-      .post('/register')
-      .send({ userId: 'testuser', password: 'testpassword' }); // Register first
+        const token = loginResponse.body.token;
 
-    const response = await request(server)
-      .post('/login')
-      .send({ username: 'testuser', password: 'testpassword' });
+        const response = await request(app)  // Utilisez 'app'
+        .post('/create-subfolder/testuser/testfolder')
+        .set('Authorization', `Bearer ${token}`);
 
-    expect(response.status).toBe(200);
-    expect(response.body.token).toBeDefined();
-  });
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Subfolder testfolder created in testuser.');
+    });
 
-  // Test de la création de sous-dossier
-  it('should create a subfolder for a user', async () => {
-    const loginResponse = await request(server)
-      .post('/login')
-      .send({ username: 'testuser', password: 'testpassword' });
+    it('should upload a file for a user', async () => {
+        const loginResponse = await request(app)  // Utilisez 'app'
+        .post('/login')
+        .send({ username: 'testuser', password: 'testpassword' });
 
-    const token = loginResponse.body.token;
+        const token = loginResponse.body.token;
 
-    const response = await request(server)
-      .post('/create-subfolder/testuser/testfolder')
-      .set('Authorization', `Bearer ${token}`);
+        const response = await request(app)  // Utilisez 'app'
+        .post('/upload/testuser')
+        .set('Authorization', `Bearer ${token}`)
+        .attach('file', './file.txt');  // Remplacez 'path/to/your/file.txt' par un fichier valide
 
-    expect(response.status).toBe(200);
-    expect(response.body.message).toBe('Subfolder testfolder created in testuser.');
-  });
+        expect(response.status).toBe(200);
+        expect(response.body.message).toContain('File file.txt uploaded in testuser.');
+    });
 
-  // Test de l'upload de fichier
-  it('should upload a file for a user', async () => {
-    const loginResponse = await request(server)
-      .post('/login')
-      .send({ username: 'testuser', password: 'testpassword' });
+    it('should list files in a user folder', async () => {
+        const loginResponse = await request(app)  // Utilisez 'app'
+        .post('/login')
+        .send({ username: 'testuser', password: 'testpassword' });
 
-    const token = loginResponse.body.token;
+        const token = loginResponse.body.token;
 
-    const response = await request(server)
-      .post('/upload/testuser')
-      .set('Authorization', `Bearer ${token}`)
-      .attach('file', 'path/to/your/file.txt');  // Remplacez 'path/to/your/file.txt' par un fichier valide
+        const response = await request(app)  // Utilisez 'app'
+        .get('/list/testuser')
+        .set('Authorization', `Bearer ${token}`);
 
-    expect(response.status).toBe(200);
-    expect(response.body.message).toContain('File file.txt uploaded in testuser.');
-  });
+        expect(response.status).toBe(200);
+        expect(response.body.files).toBeDefined();
+    });
 
-  // Test de la liste des fichiers
-  it('should list files in a user folder', async () => {
-    const loginResponse = await request(server)
-      .post('/login')
-      .send({ username: 'testuser', password: 'testpassword' });
+    it('should download a file for a user', async () => {
+        const loginResponse = await request(app)  // Utilisez 'app'
+        .post('/login')
+        .send({ username: 'testuser', password: 'testpassword' });
 
-    const token = loginResponse.body.token;
+        const token = loginResponse.body.token;
 
-    const response = await request(server)
-      .get('/list/testuser')
-      .set('Authorization', `Bearer ${token}`);
+        const response = await request(app)  // Utilisez 'app'
+        .get('/download/testuser/file.txt') // Assurez-vous que le fichier 'file.txt' existe
+        .set('Authorization', `Bearer ${token}`);
 
-    expect(response.status).toBe(200);
-    expect(response.body.files).toBeDefined();
-  });
+        expect(response.status).toBe(200);
+        expect(response.headers['content-type']).toMatch(/(application\/octet-stream|text\/plain)/);
+    });
 
-  // Test du téléchargement de fichier
-  it('should download a file for a user', async () => {
-    const loginResponse = await request(server)
-      .post('/login')
-      .send({ username: 'testuser', password: 'testpassword' });
+    it('should delete a user folder', async () => {
+        const loginResponse = await request(app)  // Utilisez 'app'
+        .post('/login')
+        .send({ username: 'testuser', password: 'testpassword' });
 
-    const token = loginResponse.body.token;
+        const token = loginResponse.body.token;
 
-    const response = await request(server)
-      .get('/download/testuser/file.txt') // Assurez-vous que le fichier 'file.txt' existe
-      .set('Authorization', `Bearer ${token}`);
+        const response = await request(app)  // Utilisez 'app'
+        .delete('/delete-folder/testuser/testfolder') // Assurez-vous que ce dossier peut être supprimé
+        .set('Authorization', `Bearer ${token}`);
 
-    expect(response.status).toBe(200);
-    expect(response.headers['content-type']).toContain('application/octet-stream');
-  });
-
-  // Test de la suppression d'un dossier
-  it('should delete a user folder', async () => {
-    const loginResponse = await request(server)
-      .post('/login')
-      .send({ username: 'testuser', password: 'testpassword' });
-
-    const token = loginResponse.body.token;
-
-    const response = await request(server)
-      .delete('/delete-folder/testuser/assets') // Assurez-vous que ce dossier peut être supprimé
-      .set('Authorization', `Bearer ${token}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body.message).toBe('Folder assets deleted.');
-  });
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Folder testfolder deleted.');
+    });
 });

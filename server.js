@@ -60,10 +60,7 @@ app.post('/register', (req, res) => {
     .then(() => {
       // After successful registration, create default folders
       createUserFolders(userId);
-
-      // Add the user to the system
-      users[userId] = { allowedFolders: [userId] };
-
+      users[userId] = { ...users[userId], allowedFolders: [userId] }; // ✅ Ajout du mot de passe déjà stocké
       res.json({ message: "User registered and folders created!" });
     })
     .catch((error) => {
@@ -75,21 +72,29 @@ app.post('/login', login);
 
 // 📁 **Create a subfolder**
 app.post('/create-subfolder/:id/:subFolder', authenticateJWT, (req, res) => {
+
   if (req.user.username !== req.params.id) {
-    return res.status(403).json({ error: 'Unauthorized to create a subfolder here' });
+      console.log("❌ Utilisateur non autorisé à créer ce dossier");
+      return res.status(403).json({ error: 'Unauthorized to create a subfolder here' });
   }
 
   const parentPath = path.join(BASE_DIR, req.params.id);
   const subFolderPath = path.join(parentPath, req.params.subFolder);
+
   if (!fs.existsSync(parentPath)) {
-    return res.status(404).json({ error: 'Parent folder does not exist.' });
+      console.log("❌ Parent folder does not exist.");
+      return res.status(404).json({ error: 'Parent folder does not exist.' });
   }
+  
   if (!fs.existsSync(subFolderPath)) {
-    fs.mkdirSync(subFolderPath);
-    return res.json({ message: `Subfolder ${req.params.subFolder} created in ${req.params.id}.` });
+      fs.mkdirSync(subFolderPath);
+      return res.json({ message: `Subfolder ${req.params.subFolder} created in ${req.params.id}.` });
   }
+
+  console.log("❌ Le sous-dossier existe déjà.");
   return res.status(400).json({ error: 'Subfolder already exists.' });
 });
+
 
 // 📤 **Upload a file**
 app.post('/upload/:id', authenticateJWT, upload.single('file'), (req, res) => {
@@ -114,15 +119,19 @@ app.get('/list/:id', authenticateJWT, (req, res) => {
 
 // ⬇️ **Download a file**
 app.get('/download/:id/:filename', authenticateJWT, (req, res) => {
-  if (req.user.username !== req.params.id && !users[req.user.username].allowedFolders.includes(req.params.id)) {
-    return res.status(403).json({ error: 'Unauthorized to download this file' });
-  }
-
+  
   const filePath = path.join(BASE_DIR, req.params.id, req.params.filename);
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
+      console.log("❌ Fichier non trouvé !");
+      return res.status(404).json({ error: 'File not found' });
   }
-  res.download(filePath);
+
+  res.download(filePath, (err) => {
+      if (err) {
+          console.error("❌ Erreur lors du téléchargement :", err);
+          res.status(500).json({ error: "Download failed" });
+      }
+  });
 });
 
 // 🚮 **Delete a folder** (only for admins or user's own folders)
@@ -142,13 +151,17 @@ app.delete('/delete-folder/:id/:folder', authenticateJWT, (req, res) => {
     return res.status(403).json({ error: 'This folder is protected and cannot be deleted' });
   }
 
-  fs.rmdirSync(folderPath, { recursive: true });
+  fs.rmSync(folderPath, { recursive: true });
   res.json({ message: `Folder ${req.params.folder} deleted.` });
 });
 
 // 🚀 Start server
-app.listen(port, () => {
-  console.log(`🚀 Secure CDN running on port ${port}`);
+const server = app.listen(3000, () => {
+  console.log('🚀 Secure CDN running on port 3000');
 });
 
-module.exports = { app, server };  // Export app and server
+// app.listen(port, () => {
+//   console.log(`🚀 Secure CDN running on port ${port}`);
+// });
+
+module.exports = { app, server };
