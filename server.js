@@ -71,28 +71,59 @@ app.post('/register', (req, res) => {
 app.post('/login', login);
 
 // 📁 **Create a subfolder**
-app.post('/create-subfolder/:id/:subFolder', authenticateJWT, (req, res) => {
+app.post('/create-subfolder/:id/*', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  const parentFolderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin du dossier parent
 
-  if (req.user.username !== req.params.id) {
-      console.log("❌ Utilisateur non autorisé à créer ce dossier");
-      return res.status(403).json({ error: 'Unauthorized to create a subfolder here' });
+  if (req.user.username !== id) {
+    return res.status(403).json({ error: 'Unauthorized to create a subfolder here' });
   }
 
-  const parentPath = path.join(BASE_DIR, req.params.id);
-  const subFolderPath = path.join(parentPath, req.params.subFolder);
-
-  if (!fs.existsSync(parentPath)) {
-      console.log("❌ Parent folder does not exist.");
-      return res.status(404).json({ error: 'Parent folder does not exist.' });
+  if (!fs.existsSync(parentFolderPath)) {
+    return res.status(404).json({ error: 'Parent folder does not exist.' });
   }
+
+  const subFolderPath = path.join(parentFolderPath, req.body.subFolderName);
   
+  // Crée le sous-dossier si nécessaire
   if (!fs.existsSync(subFolderPath)) {
-      fs.mkdirSync(subFolderPath);
-      return res.json({ message: `Subfolder ${req.params.subFolder} created in ${req.params.id}.` });
+    fs.mkdirSync(subFolderPath);
+    return res.status(200).json({ message: `Subfolder ${req.body.subFolderName} created inside ${req.params[0]}.` });
+  } else {
+    return res.status(400).json({ error: 'Subfolder already exists.' });
+  }
+});
+
+app.post('/add/:id/:targetFolder', authenticateJWT, upload.single('file'), (req, res) => {
+  const { id, targetFolder } = req.params;
+  
+  // Vérifier si l'utilisateur a le droit d'écrire dans ce dossier
+  if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
+      return res.status(403).json({ error: 'Unauthorized to modify this folder' });
   }
 
-  console.log("❌ Le sous-dossier existe déjà.");
-  return res.status(400).json({ error: 'Subfolder already exists.' });
+  const folderPath = path.join(BASE_DIR, id, targetFolder);
+
+  // Vérifier si le dossier cible existe
+  if (!fs.existsSync(folderPath)) {
+      return res.status(404).json({ error: 'Target folder does not exist.' });
+  }
+
+  if (req.file) {
+      // Cas : Un fichier est envoyé -> On l'ajoute au dossier
+      const filePath = path.join(folderPath, req.file.originalname);
+      fs.renameSync(req.file.path, filePath);
+      return res.json({ message: `File ${req.file.originalname} added to ${targetFolder}.` });
+  } else {
+      // Cas : Aucun fichier n'est envoyé -> Créer un sous-dossier
+      const newFolderPath = path.join(folderPath, req.body.folderName);
+      if (!fs.existsSync(newFolderPath)) {
+          fs.mkdirSync(newFolderPath);
+          return res.json({ message: `Folder ${req.body.folderName} created inside ${targetFolder}.` });
+      } else {
+          return res.status(400).json({ error: 'Folder already exists.' });
+      }
+  }
 });
 
 
@@ -105,55 +136,84 @@ app.post('/upload/:id', authenticateJWT, upload.single('file'), (req, res) => {
 });
 
 // 📄 **List files**
-app.get('/list/:id', authenticateJWT, (req, res) => {
-  if (req.user.username !== req.params.id && !users[req.user.username].allowedFolders.includes(req.params.id)) {
+app.get('/list/:id/*', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+
+  if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to list this folder' });
   }
 
-  const folderPath = path.join(BASE_DIR, req.params.id);
   if (!fs.existsSync(folderPath)) {
     return res.status(404).json({ error: 'Folder not found' });
   }
-  res.json({ files: fs.readdirSync(folderPath) });
+
+  const files = fs.readdirSync(folderPath);
+  res.json({ files });
 });
 
 // ⬇️ **Download a file**
-app.get('/download/:id/:filename', authenticateJWT, (req, res) => {
-  
-  const filePath = path.join(BASE_DIR, req.params.id, req.params.filename);
-  if (!fs.existsSync(filePath)) {
-      console.log("❌ Fichier non trouvé !");
-      return res.status(404).json({ error: 'File not found' });
+app.get('/download/:id/*', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  const filePath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+
+  if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
+    return res.status(403).json({ error: 'Unauthorized to download this file' });
   }
 
-  res.download(filePath, (err) => {
-      if (err) {
-          console.error("❌ Erreur lors du téléchargement :", err);
-          res.status(500).json({ error: "Download failed" });
-      }
-  });
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  res.download(filePath);
 });
 
 // 🚮 **Delete a folder** (only for admins or user's own folders)
-app.delete('/delete-folder/:id/:folder', authenticateJWT, (req, res) => {
-  if (req.user.username !== req.params.id && !isAdmin(req.user)) {
+app.delete('/delete-folder/:id/*', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+
+  if (req.user.username !== id && !isAdmin(req.user)) {
     return res.status(403).json({ error: 'Unauthorized to delete this folder' });
   }
-
-  const folderPath = path.join(BASE_DIR, req.params.id, req.params.folder);
 
   if (!fs.existsSync(folderPath)) {
     return res.status(404).json({ error: 'Folder not found' });
   }
 
-  // Protect default folders from deletion
-  if (["assets", "invoices", "misc", "resume"].includes(req.params.folder) && !isAdmin(req.user)) {
-    return res.status(403).json({ error: 'This folder is protected and cannot be deleted' });
+  // Supprime le dossier, y compris son contenu
+  try {
+    fs.rmdirSync(folderPath, { recursive: true });
+    return res.status(200).json({ message: `Folder ${path.basename(folderPath)} deleted.` });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to delete folder' });
+  }
+});
+
+// Route pour supprimer un fichier dans un dossier spécifique
+app.delete('/delete-file/:id/*', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  const filePath = path.join(BASE_DIR, id, req.params[0]); // Utilise le paramètre * pour obtenir le chemin complet
+
+  // Vérification si l'utilisateur a accès au dossier
+  if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
+    return res.status(403).json({ error: 'Unauthorized to delete this file' });
   }
 
-  fs.rmSync(folderPath, { recursive: true });
-  res.json({ message: `Folder ${req.params.folder} deleted.` });
+  // Vérification si le fichier existe
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  // Suppression du fichier
+  try {
+    fs.unlinkSync(filePath);
+    return res.status(200).json({ message: `File ${path.basename(filePath)} deleted.` });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to delete file' });
+  }
 });
+
 
 // 🚀 Start server
 const server = app.listen(3000, () => {
