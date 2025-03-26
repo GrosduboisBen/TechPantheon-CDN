@@ -1,2 +1,4 @@
 .qodo
 node_modules/
+cdn-assets/
+.env
