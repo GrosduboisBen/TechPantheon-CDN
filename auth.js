@@ -4,13 +4,17 @@ require('dotenv').config();
 
 const users = {}; // Stock temporaire des utilisateurs (remplace avec une DB)
 
-function register(req, res) {
-    const { username, password } = req.body;
-    if (users[username]) return res.status(400).json({ error: 'User already exists' });
-
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    users[username] = { password: hashedPassword, allowedFolders: [] };
-    res.json({ message: 'User registered' });
+// La fonction register retourne maintenant une promesse
+function register(userId, password) {
+    return new Promise((resolve, reject) => {
+        if (users[userId]) {
+            reject(new Error('User already exists'));
+        } else {
+            const hashedPassword = bcrypt.hashSync(password, 10);
+            users[userId] = { password: hashedPassword, allowedFolders: [] };
+            resolve();
+        }
+    });
 }
 
 function login(req, res) {
@@ -35,4 +39,9 @@ function authenticateJWT(req, res, next) {
     });
 }
 
-module.exports = { register, login, authenticateJWT, users };
+// Fonction pour vérifier si l'utilisateur est un admin
+function isAdmin(user) {
+    return user.username === 'admin'; // À adapter selon votre logique d'admin
+}
+
+module.exports = { register, login, authenticateJWT, users, isAdmin };
