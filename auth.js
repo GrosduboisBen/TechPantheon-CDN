@@ -11,26 +11,26 @@ function register(userId, password) {
             reject(new Error('User already exists'));
         } else {
             const hashedPassword = bcrypt.hashSync(password, 10);
-            users[userId] = { password: hashedPassword, allowedFolders: [] };            
+            users[userId] = { password: hashedPassword, allowedFolders: [] };
             resolve();
         }
     });
 }
 
 function login(req, res) {
-    const { username, password } = req.body;
-    const user = users[username];
+    const { userId, password } = req.body;
+    const user = users[userId];
     if (!user) {
-        console.log('User not found:', username);
-        return res.status(401).json({ error: 'Invalid credentials' });
+        console.log('User not found:', userId);
+        return res.status(401).json({ error: 'Invalid credentials', content: req.body, total: users, found: user });
     }
 
     if (!bcrypt.compareSync(password, user.password)) {
-        console.log('Password mismatch for user:', username);
-        return res.status(401).json({ error: 'Invalid credentials' });
+        console.log('Password mismatch for user:', userId);
+        return res.status(401).json({ error: 'Invalid credentials', content: req.body });
     }
 
-    const token = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.json({ token });
 }
 
