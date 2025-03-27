@@ -1,5 +1,5 @@
 {
-  "name": "CDN Express Dev",
+  "name": "CDN Express Dev APP",
   "dockerComposeFile": [
     "../docker-compose.yml"
   ],
@@ -7,7 +7,7 @@
   "forwardPorts": [
     3000
   ],
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/app-workspace",
   "settings": {
     "editor.formatOnSave": true,
     "terminal.integrated.defaultProfile.linux": "usr/bin/bash",

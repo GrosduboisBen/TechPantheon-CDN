@@ -7,7 +7,6 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/workspace:cached
-      - /workspace/node_modules
-
+      - .:/app-workspace:cached
+      - /app-workspace/node_modules
     command: ["node","server.js"]
