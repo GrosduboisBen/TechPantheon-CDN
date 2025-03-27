@@ -94,37 +94,41 @@ app.post('/create-subfolder/:id/*', authenticateJWT, (req, res) => {
   }
 });
 
-app.post('/add/:id/:targetFolder', authenticateJWT, upload.single('file'), (req, res) => {
-  const { id, targetFolder } = req.params;
-  
+app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
+  const { id } = req.params;
+  const relativePath = req.params[0] || ''; // Capture le chemin après /add/:id/ (ou vide si non fourni)
+  const folderPath = path.join(BASE_DIR, id, relativePath); // Assure que tout commence dans le dossier de l'utilisateur
+
   // Vérifier si l'utilisateur a le droit d'écrire dans ce dossier
   if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
-      return res.status(403).json({ error: 'Unauthorized to modify this folder' });
+    return res.status(403).json({ error: 'Unauthorized to modify this folder' });
   }
-
-  const folderPath = path.join(BASE_DIR, id, targetFolder);
 
   // Vérifier si le dossier cible existe
   if (!fs.existsSync(folderPath)) {
-      return res.status(404).json({ error: 'Target folder does not exist.' });
+    fs.mkdirSync(folderPath, { recursive: true }); // ✅ Crée tous les sous-dossiers manquants
   }
 
   if (req.file) {
-      // Cas : Un fichier est envoyé -> On l'ajoute au dossier
-      const filePath = path.join(folderPath, req.file.originalname);
-      fs.renameSync(req.file.path, filePath);
-      return res.json({ message: `File ${req.file.originalname} added to ${targetFolder}.` });
+    // Cas : Un fichier est envoyé -> On l'ajoute au dossier
+    const filePath = path.join(folderPath, req.file.originalname);
+    fs.renameSync(req.file.path, filePath);
+    return res.json({ message: `File ${req.file.originalname} added to ${relativePath || 'root'}.` });
   } else {
-      // Cas : Aucun fichier n'est envoyé -> Créer un sous-dossier
-      const newFolderPath = path.join(folderPath, req.body.folderName);
-      if (!fs.existsSync(newFolderPath)) {
-          fs.mkdirSync(newFolderPath);
-          return res.json({ message: `Folder ${req.body.folderName} created inside ${targetFolder}.` });
-      } else {
-          return res.status(400).json({ error: 'Folder already exists.' });
-      }
+    // Cas : Aucun fichier n'est envoyé -> Créer un sous-dossier
+    if (!req.body.folderName) {
+      return res.status(400).json({ error: 'folderName is required to create a subfolder' });
+    }
+    const newFolderPath = path.join(folderPath, req.body.folderName);
+    if (!fs.existsSync(newFolderPath)) {
+      fs.mkdirSync(newFolderPath);
+      return res.json({ message: `Folder ${req.body.folderName} created inside ${relativePath || 'root'}.` });
+    } else {
+      return res.status(400).json({ error: 'Folder already exists.' });
+    }
   }
 });
+
 
 
 // 📤 **Upload a file**
