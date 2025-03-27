@@ -11,26 +11,26 @@ function register(userId, password) {
             reject(new Error('User already exists'));
         } else {
             const hashedPassword = bcrypt.hashSync(password, 10);
-            users[userId] = { password: hashedPassword, allowedFolders: [] };            
+            users[userId] = { password: hashedPassword, allowedFolders: [] };
             resolve();
         }
     });
 }
 
 function login(req, res) {
-    const { username, password } = req.body;
-    const user = users[username];
+    const { userId, password } = req.body;
+    const user = users[userId];
     if (!user) {
-        console.log('User not found:', username);
+        console.log('User not found:', userId);
         return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     if (!bcrypt.compareSync(password, user.password)) {
-        console.log('Password mismatch for user:', username);
+        console.log('Password mismatch for user:', userId);
         return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.json({ token });
 }
 
@@ -49,7 +49,7 @@ function authenticateJWT(req, res, next) {
 
 // Fonction pour vérifier si l'utilisateur est un admin
 function isAdmin(user) {
-    return user.username === 'admin'; // À adapter selon votre logique d'admin
+    return user.userId === 'admin'; // À adapter selon votre logique d'admin
 }
 
 module.exports = { register, login, authenticateJWT, users, isAdmin };
