@@ -1,11 +1,11 @@
 {
-  "name": "CDN Express Dev APP",
+  "name": "CDN Express Storage Dev",
   "dockerComposeFile": [
     "../docker-compose.yml"
   ],
-  "service": "cdn-main",
+  "service": "storage",
   "forwardPorts": [
-    3000
+    4000
   ],
   "workspaceFolder": "/workspace",
   "settings": {

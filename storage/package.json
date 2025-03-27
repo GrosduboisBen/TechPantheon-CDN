@@ -1,26 +1,13 @@
 {
-  "name": "custom-cdn",
+  "name": "storage-service",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "main": "src/storageServer.js",
   "scripts": {
-    "test": "jest"
+    "start": "node src/storageServer.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "dotenv": "^16.4.7",
-    "express": "^4.18.2",
-    "express-jwt": "^8.5.1",
-    "fs": "^0.0.1-security",
-    "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.2",
-    "path": "^0.12.7"
-  },
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "supertest": "^7.1.0"
+    "express": "^4.17.1",
+    "multer": "^1.4.2",
+    "archiver": "^5.3.0"
   }
 }
