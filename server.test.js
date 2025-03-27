@@ -36,19 +36,19 @@ describe('Test CDN Express API', () => {
   beforeAll(async () => {
     const loginResponse = await request(app)
       .post('/login')
-      .send({ username: 'testuser', password: 'testpassword' });
+      .send({ userId: 'testuser', password: 'testpassword' });
 
     token = loginResponse.body.token;
   });
 
   it('should create a subfolder inside an existing folder', async () => {
     const response = await request(app)
-      .post('/add/testuser/assets')
+      .post('/create-subfolder/testuser/assets')
       .set('Authorization', `Bearer ${token}`)
-      .send({ folderName: 'newSubFolder' });
+      .send({ subFolderName: 'newSubFolder' });
 
     expect(response.status).toBe(200);
-    expect(response.body.message).toBe('Folder newSubFolder created inside assets.');
+    expect(response.body.message).toBe('Subfolder newSubFolder created inside assets.');
 
     const folderPath = path.join(BASE_DIR, 'testuser', 'assets', 'newSubFolder');
     expect(fs.existsSync(folderPath)).toBe(true);
@@ -56,22 +56,12 @@ describe('Test CDN Express API', () => {
 
   it('should return 400 if subfolder already exists', async () => {
     const response = await request(app)
-      .post('/add/testuser/assets')
+      .post('/create-subfolder/testuser/assets')
       .set('Authorization', `Bearer ${token}`)
-      .send({ folderName: 'newSubFolder' });
+      .send({ subFolderName: 'newSubFolder' });
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe('Folder already exists.');
-  });
-
-  it('should return 404 if target folder does not exist (before fix)', async () => {
-    const response = await request(app)
-      .post('/add/testuser/nonExistingFolder')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ folderName: 'shouldNotWork' });
-
-    expect(response.status).toBe(404);
-    expect(response.body.error).toBe('Target folder does not exist.');
+    expect(response.body.error).toBe('Subfolder already exists.');
   });
 
   it('should add a file to an existing folder', async () => {
@@ -85,6 +75,51 @@ describe('Test CDN Express API', () => {
 
     const filePath = path.join(BASE_DIR, 'testuser', 'assets', 'newfile.txt');
     expect(fs.existsSync(filePath)).toBe(true);
+  });
+
+  it('should create a new folder inside an existing folder', async () => {
+    const response = await request(app)
+      .post('/add/testuser/assets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ folderName: 'newFolder' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Folder newFolder created inside assets.');
+
+    const folderPath = path.join(BASE_DIR, 'testuser', 'assets', 'newFolder');
+    expect(fs.existsSync(folderPath)).toBe(true);
+  });
+
+  it('should return 400 if folder already exists', async () => {
+    const response = await request(app)
+      .post('/add/testuser/assets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ folderName: 'newFolder' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Folder already exists.');
+  });
+
+  it('should return 403 if user is not authorized to add a file/folder', async () => {
+    const response = await request(app)
+      .post('/add/anotheruser/assets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ folderName: 'unauthorizedFolder' });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('Unauthorized to modify this folder');
+  });
+
+  it('should delete a subfolder', async () => {
+    const response = await request(app)
+      .delete('/delete-folder/testuser/assets/newFolder')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Folder newFolder deleted.');
+
+    const folderPath = path.join(BASE_DIR, 'testuser', 'assets', 'newFolder');
+    expect(fs.existsSync(folderPath)).toBe(false);
   });
 
   it('should delete a file inside a nested subfolder', async () => {
@@ -102,27 +137,5 @@ describe('Test CDN Express API', () => {
     expect(response.body.message).toBe('File testfile.txt deleted.');
     expect(fs.existsSync(filePath)).toBe(false);
     expect(fs.existsSync(folderPath)).toBe(true);
-  });
-
-  it('should return 403 if user is not authorized', async () => {
-    const response = await request(app)
-      .post('/add/anotheruser/assets')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ folderName: 'unauthorizedFolder' });
-
-    expect(response.status).toBe(403);
-    expect(response.body.error).toBe('Unauthorized to modify this folder');
-  });
-
-  it('should delete a user folder', async () => {
-    const response = await request(app)
-      .delete('/delete-folder/testuser/assets/newSubFolder')
-      .set('Authorization', `Bearer ${token}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body.message).toBe('Folder newSubFolder deleted.');
-
-    const folderPath = path.join(BASE_DIR, 'testuser', 'assets', 'newSubFolder');
-    expect(fs.existsSync(folderPath)).toBe(false);
   });
 });

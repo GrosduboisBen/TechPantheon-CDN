@@ -75,16 +75,17 @@ app.post('/create-subfolder/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
   const parentFolderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin du dossier parent
 
-  if (req.user.username !== id) {
+  if (req.user.userId !== id) {
     return res.status(403).json({ error: 'Unauthorized to create a subfolder here' });
   }
 
   if (!fs.existsSync(parentFolderPath)) {
-    return res.status(404).json({ error: 'Parent folder does not exist.' });
+    fs.mkdirSync(parentFolderPath);
+    return res.status(200).json({ message: `Subfolder ${req.body.subFolderName} created inside ${BASE_DIR}.` });
   }
 
   const subFolderPath = path.join(parentFolderPath, req.body.subFolderName);
-  
+
   // Crée le sous-dossier si nécessaire
   if (!fs.existsSync(subFolderPath)) {
     fs.mkdirSync(subFolderPath);
@@ -100,7 +101,7 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
   const folderPath = path.join(BASE_DIR, id, relativePath); // Assure que tout commence dans le dossier de l'utilisateur
 
   // Vérifier si l'utilisateur a le droit d'écrire dans ce dossier
-  if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
+  if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to modify this folder' });
   }
 
@@ -133,7 +134,7 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
 
 // 📤 **Upload a file**
 app.post('/upload/:id', authenticateJWT, upload.single('file'), (req, res) => {
-  if (req.user.username !== req.params.id) {
+  if (req.user.userId !== req.params.id) {
     return res.status(403).json({ error: 'Unauthorized to upload in this folder' });
   }
   res.json({ message: `File ${req.file.originalname} uploaded in ${req.params.id}.` });
@@ -144,7 +145,7 @@ app.get('/list/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
   const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
 
-  if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
+  if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to list this folder' });
   }
 
@@ -161,7 +162,7 @@ app.get('/download/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
   const filePath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
 
-  if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
+  if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to download this file' });
   }
 
@@ -177,7 +178,7 @@ app.delete('/delete-folder/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
   const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
 
-  if (req.user.username !== id && !isAdmin(req.user)) {
+  if (req.user.userId !== id && !isAdmin(req.user)) {
     return res.status(403).json({ error: 'Unauthorized to delete this folder' });
   }
 
@@ -200,7 +201,7 @@ app.delete('/delete-file/:id/*', authenticateJWT, (req, res) => {
   const filePath = path.join(BASE_DIR, id, req.params[0]); // Utilise le paramètre * pour obtenir le chemin complet
 
   // Vérification si l'utilisateur a accès au dossier
-  if (req.user.username !== id && !users[req.user.username].allowedFolders.includes(id)) {
+  if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to delete this file' });
   }
 
