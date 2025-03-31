@@ -1,4 +1,6 @@
 const express = require('express');
+const axios = require('axios');
+
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -7,6 +9,7 @@ const { register, login, authenticateJWT, users, isAdmin } = require('./auth');
 const app = express();
 const port = 3000;
 const BASE_DIR = path.join(__dirname, 'cdn-assets');
+const STORAGE_SERVER_URL = process.env.BASE_STORAGE_URL
 
 app.use(express.json());
 
