@@ -117,7 +117,16 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
     // Cas : Un fichier est envoyé -> On l'ajoute au dossier
     const filePath = path.join(folderPath, req.file.originalname);
     fs.renameSync(req.file.path, filePath);
-    return res.json({ message: `File ${req.file.originalname} added to ${relativePath || 'root'}.` });
+
+    // Appel au serveur NGINX pour gérer le fichier
+    axios.post(`${BASE_STORAGE_URL}/storage/`, {
+      filePath: filePath,
+      folder: relativePath || 'root'
+    }).then(response => {
+      res.json({ message: `File ${req.file.originalname} added to ${relativePath || 'root'}.` });
+    }).catch(error => {
+      res.status(500).json({ error: error.message });
+    });
   } else {
     // Cas : Aucun fichier n'est envoyé -> Créer un sous-dossier
     if (!req.body.folderName) {
@@ -126,7 +135,16 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
     const newFolderPath = path.join(folderPath, req.body.folderName);
     if (!fs.existsSync(newFolderPath)) {
       fs.mkdirSync(newFolderPath);
-      return res.json({ message: `Folder ${req.body.folderName} created inside ${relativePath || 'root'}.` });
+
+      // Assurez-vous que l'appel au serveur NGINX est sur le bon port
+      axios.post(`${BASE_STORAGE_URL}/storage/`, {
+        folderName: req.body.folderName,
+        folderPath: newFolderPath
+      }).then(response => {
+        res.json({ message: `Folder ${req.body.folderName} created inside ${relativePath || 'root'}.` });
+      }).catch(error => {
+        res.status(500).json({ error: error.message });
+      });
     } else {
       return res.status(400).json({ error: 'Folder already exists.' });
     }

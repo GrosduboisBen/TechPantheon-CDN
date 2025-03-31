@@ -1,13 +1,32 @@
-version: "3.9"
+version: '3.8'
+
 services:
-  cdn:
+  app:
     build:
-      context: .
+      context: ./app
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3000:3000"  # L'application sera exposée sur le port 3000
+    depends_on:
+      - storage
     volumes:
-      - .:/workspace:cached
+      - ./app:/workspace:cached
       - /workspace/node_modules
+    networks:
+      - app-network
 
-    command: ["node","server.js"]
+  storage:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: storage-nginx
+    ports:
+      - "8080:8080"  # Expose le port 80 pour NGINX
+    volumes:
+      - ./storage_data:/var/www/storage  # Volume pour les fichiers
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

@@ -3,9 +3,10 @@
   "dockerComposeFile": [
     "../docker-compose.yml"
   ],
-  "service": "cdn",
+  "service": "app",  // Le service principal est 'app' maintenant
   "forwardPorts": [
-    3000
+    3000,  // Le port 3000 est exposé pour l'application
+    8080     // Ajout du port 80 pour accéder à NGINX (si nécessaire)
   ],
   "workspaceFolder": "/workspace",
   "settings": {
