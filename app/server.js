@@ -6,6 +6,8 @@ const path = require('path');
 const multer = require('multer');
 const { register, login, authenticateJWT, users, isAdmin } = require('./auth');
 const zlib = require('zlib');
+const mime = require('mime-types');
+
 
 const app = express();
 const BASE_DIR = path.join(__dirname, 'cdn-assets');
@@ -114,8 +116,7 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
 
   if (req.file) {
     // Cas : Un fichier est envoyé -> On l'ajoute au dossier
-    const { name } = path.parse(req.file.originalname); // Récupère le nom sans extension
-    const filePath = path.join(folderPath, `${name}.gz`);
+    const filePath = path.join(folderPath, `${req.file.originalname}.gz`);
     console.log(`📝 Compression de ${req.file.originalname} -> ${filePath}`);
 
     const fileContents = fs.createReadStream(req.file.path);
@@ -191,11 +192,13 @@ app.get('/download/:id/*', authenticateJWT, (req, res) => {
         console.error(`❌ Fichier introuvable : ${filePath}`);
         return res.status(404).json({ error: 'File not found', filePath: filePath });
     }
-
+    const originalFileName = path.basename(filePath, '.gz');
     console.log(`📤 Décompression et envoi du fichier : ${filePath}`);
+    const mimeType = mime.lookup(originalFileName) || 'application/octet-stream';
 
     // Décompression du fichier (GZIP)
-    res.setHeader('Content-Disposition', `attachment; filename=${path.basename(filePath, '.gz')}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+    res.setHeader('Content-Type', mimeType);
     const compressedFile = fs.createReadStream(filePath);
     const unzip = zlib.createGunzip();
 
