@@ -1,38 +1,38 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
-
-const users = {}; // Stock temporaire des utilisateurs (remplace avec une DB)
+const {db} = require('./db');
 
 // La fonction register retourne maintenant une promesse
 function register(userId, password) {
     return new Promise((resolve, reject) => {
-        if (users[userId]) {
-            reject(new Error('User already exists'));
-        } else {
-            const hashedPassword = bcrypt.hashSync(password, 10);
-            users[userId] = { password: hashedPassword, allowedFolders: [] };
-            resolve();
+      db.get('SELECT * FROM users WHERE id = ?', [userId], async (err, row) => {
+        if (row) {
+          return reject(new Error('User already exists'));
         }
+  
+        const hashedPassword = await bcrypt.hash(password, 10);
+        db.run('INSERT INTO users (id, password) VALUES (?, ?)', [userId, hashedPassword], (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
     });
-}
+  }
 
-function login(req, res) {
+  function login(req, res) {
     const { userId, password } = req.body;
-    const user = users[userId];
-    if (!user) {
-        console.log('User not found:', userId);
-        return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    if (!bcrypt.compareSync(password, user.password)) {
-        console.log('Password mismatch for user:', userId);
-        return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token });
-}
+  
+    db.get('SELECT * FROM users WHERE id = ?', [userId], async (err, user) => {
+      if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  
+      const match = await bcrypt.compare(password, user.password);
+      if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+  
+      const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '24h' });
+      res.json({ token });
+    });
+  }
 
 
 
@@ -52,4 +52,4 @@ function isAdmin(user) {
     return user.userId === 'admin'; // À adapter selon votre logique d'admin
 }
 
-module.exports = { register, login, authenticateJWT, users, isAdmin };
+module.exports = { register, login, authenticateJWT, isAdmin };

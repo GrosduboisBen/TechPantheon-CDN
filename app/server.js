@@ -64,7 +64,6 @@ app.post('/register', (req, res) => {
     .then(() => {
       // After successful registration, create default folders
       createUserFolders(userId);
-      users[userId] = { ...users[userId], allowedFolders: [userId] }; // ✅ Ajout du mot de passe déjà stocké
       res.json({ message: "User registered and folders created!" });
     })
     .catch((error) => {
@@ -104,8 +103,8 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
   const relativePath = req.params[0] || ''; // Capture le chemin après /add/:id/ (ou vide si non fourni)
   const folderPath = path.join(BASE_DIR, id, relativePath); // Assure que tout commence dans le dossier de l'utilisateur
 
-  // Vérifier si l'utilisateur a le droit d'écrire dans ce dossier
-  if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
+  
+  if (req.user.userId !== id || !allowed.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to modify this folder' });
   }
 
@@ -158,8 +157,9 @@ app.post('/upload/:id', authenticateJWT, upload.single('file'), (req, res) => {
 app.get('/list/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
   const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+  const allowed = getAllowedFolders(req.user.userId);
 
-  if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
+  if (req.user.userId !== id || !allowed.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to list this folder' });
   }
 
@@ -175,8 +175,9 @@ app.get('/list/:id/*', authenticateJWT, (req, res) => {
 app.get('/download/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
   let filePath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+  const allowed = getAllowedFolders(req.user.userId);
 
-  if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
+  if (req.user.userId !== id || !allowed.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to download this file' });
   }
 
@@ -233,8 +234,9 @@ app.delete('/delete-file/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
   const filePath = path.join(BASE_DIR, id, req.params[0]); // Utilise le paramètre * pour obtenir le chemin complet
 
-  // Vérification si l'utilisateur a accès au dossier
-  if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
+  // Vérification si l'utilisateur a accès au dossier const allowed = getAllowedFolders(req.user.userId);
+
+  if (req.user.userId !== id || !allowed.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to delete this file' });
   }
 

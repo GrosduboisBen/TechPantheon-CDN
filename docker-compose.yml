@@ -7,23 +7,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"  # L'application sera exposée sur le port 3000
-    depends_on:
-      - storage
     volumes:
       - ./app:/workspace:cached
       - /workspace/node_modules
-    networks:
-      - app-network
-
-  storage:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    container_name: storage-nginx
-    ports:
-      - "8080:8080"  # Expose le port 80 pour NGINX
-    volumes:
-      - ./storage_data:/var/www/storage  # Volume pour les fichiers
+      - ./app/users-data:/workspace/users-data
     networks:
       - app-network
 
