@@ -1,11 +1,15 @@
 const express = require('express');
+const axios = require('axios');
+
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { register, login, authenticateJWT, users, isAdmin } = require('./auth');
+const zlib = require('zlib');
+const mime = require('mime-types');
+
 
 const app = express();
-const port = 3000;
 const BASE_DIR = path.join(__dirname, 'cdn-assets');
 
 app.use(express.json());
@@ -112,23 +116,33 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
 
   if (req.file) {
     // Cas : Un fichier est envoyé -> On l'ajoute au dossier
-    const filePath = path.join(folderPath, req.file.originalname);
-    fs.renameSync(req.file.path, filePath);
-    return res.json({ message: `File ${req.file.originalname} added to ${relativePath || 'root'}.` });
+    const filePath = path.join(folderPath, `${req.file.originalname}.gz`);
+    console.log(`📝 Compression de ${req.file.originalname} -> ${filePath}`);
+
+    const fileContents = fs.createReadStream(req.file.path);
+    const writeStream = fs.createWriteStream(filePath);
+    const gzip = zlib.createGzip();
+
+    fileContents.pipe(gzip).pipe(writeStream);
+
+    writeStream.on('finish', () => {
+        console.log(`✅ Fichier compressé et sauvegardé : ${filePath}`);
+        fs.unlinkSync(req.file.path); // Supprime le fichier temporaire
+        res.json({
+            message: `File ${req.file.originalname} uploaded and compressed.`,
+            storedAs: path.basename(filePath)
+        });
+    });
+
+    writeStream.on('error', (err) => {
+        console.error('❌ Erreur lors de la compression :', err);
+        res.status(500).json({ error: 'Error compressing file' });
+    });
   } else {
-    // Cas : Aucun fichier n'est envoyé -> Créer un sous-dossier
-    if (!req.body.folderName) {
-      return res.status(400).json({ error: 'folderName is required to create a subfolder' });
-    }
-    const newFolderPath = path.join(folderPath, req.body.folderName);
-    if (!fs.existsSync(newFolderPath)) {
-      fs.mkdirSync(newFolderPath);
-      return res.json({ message: `Folder ${req.body.folderName} created inside ${relativePath || 'root'}.` });
-    } else {
-      return res.status(400).json({ error: 'Folder already exists.' });
-    }
+      return res.status(400).json({ error: 'File is needed' });
   }
 });
+
 
 
 
@@ -160,17 +174,36 @@ app.get('/list/:id/*', authenticateJWT, (req, res) => {
 // ⬇️ **Download a file**
 app.get('/download/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
-  const filePath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+  let filePath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
 
   if (req.user.userId !== id && !users[req.user.userId].allowedFolders.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to download this file' });
   }
 
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
-  }
+  console.log(`🔍 Recherche du fichier : ${filePath}`);
 
-  res.download(filePath);
+    // Vérifier si le fichier compressé existe
+    if (!fs.existsSync(filePath)) {
+        filePath += '.gz'; // Ajoute l'extension .gz si absente
+        console.log(`🔄 Tentative avec fichier compressé : ${filePath}`);
+    }
+
+    if (!fs.existsSync(filePath)) {
+        console.error(`❌ Fichier introuvable : ${filePath}`);
+        return res.status(404).json({ error: 'File not found', filePath: filePath });
+    }
+    const originalFileName = path.basename(filePath, '.gz');
+    console.log(`📤 Décompression et envoi du fichier : ${filePath}`);
+    const mimeType = mime.lookup(originalFileName) || 'application/octet-stream';
+
+    // Décompression du fichier (GZIP)
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+    res.setHeader('Content-Type', mimeType);
+    const compressedFile = fs.createReadStream(filePath);
+    const unzip = zlib.createGunzip();
+
+    compressedFile.pipe(unzip).pipe(res);
+
 });
 
 // 🚮 **Delete a folder** (only for admins or user's own folders)

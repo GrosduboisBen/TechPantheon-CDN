@@ -6,7 +6,7 @@ WORKDIR ./workspace
 
 COPY package*.json ./
 # Installer les dépendances au moment du build
-RUN npm install
+RUN npm install && npm list express
 
 COPY . .
 # Exposer le port utilisé par l'application
