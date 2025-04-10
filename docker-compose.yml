@@ -6,7 +6,7 @@ services:
       context: ./app
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"  # L'application sera exposée sur le port 3000
+      - "3000:3000"  # The application will be exposed on port 3000
     volumes:
       - ./app:/workspace:cached
       - /workspace/node_modules

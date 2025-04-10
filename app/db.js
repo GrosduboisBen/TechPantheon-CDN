@@ -4,13 +4,13 @@ const dbPath = path.resolve(__dirname, 'users-data', 'users.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error('Erreur lors de la connexion à SQLite :', err);
+    console.error('Error connecting to SQLite:', err);
   } else {
-    console.log('✅ Base SQLite connectée');
+    console.log('✅ SQLite database connected');
   }
 });
 
-// Crée la table si elle n'existe pas
+// Create the table if it does not exist
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,

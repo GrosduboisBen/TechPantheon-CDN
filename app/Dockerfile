@@ -1,16 +1,16 @@
-# Utilisation d'une image officielle Node.js
+# Using an official Node.js image
 FROM node:20
 
-# Définir le répertoire de travail dans le conteneur
+# Set the working directory in the container
 WORKDIR ./workspace
 
 COPY package*.json ./
-# Installer les dépendances au moment du build
+# Install dependencies during the build
 RUN npm install && npm list express
 
 COPY . .
-# Exposer le port utilisé par l'application
+# Expose the port used by the application
 EXPOSE 3000
 
-# Démarrer l'application
+# Start the application
 CMD ["node", "server.js"]
