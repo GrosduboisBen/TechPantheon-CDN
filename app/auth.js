@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 const {db} = require('./db');
 
-// La fonction register retourne maintenant une promesse
+// The register function now returns a promise
 function register(userId, password) {
     return new Promise((resolve, reject) => {
       db.get('SELECT * FROM users WHERE id = ?', [userId], async (err, row) => {
@@ -47,9 +47,9 @@ function authenticateJWT(req, res, next) {
     });
 }
 
-// Fonction pour vérifier si l'utilisateur est un admin
+// Function to check if the user is an admin
 function isAdmin(user) {
-    return user.userId === 'admin'; // À adapter selon votre logique d'admin
+    return user.userId === 'admin'; // Adapt according to your admin logic
 }
 
 module.exports = { register, login, authenticateJWT, isAdmin };

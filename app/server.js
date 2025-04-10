@@ -76,7 +76,7 @@ app.post('/login', login);
 // 📁 **Create a subfolder**
 app.post('/create-subfolder/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
-  const parentFolderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin du dossier parent
+  const parentFolderPath = path.join(BASE_DIR, id, req.params[0]);  // Use the * parameter to get the parent folder path
 
   if (req.user.userId !== id) {
     return res.status(403).json({ error: 'Unauthorized to create a subfolder here' });
@@ -89,7 +89,7 @@ app.post('/create-subfolder/:id/*', authenticateJWT, (req, res) => {
 
   const subFolderPath = path.join(parentFolderPath, req.body.subFolderName);
 
-  // Crée le sous-dossier si nécessaire
+  // Create the subfolder if necessary
   if (!fs.existsSync(subFolderPath)) {
     fs.mkdirSync(subFolderPath);
     return res.status(200).json({ message: `Subfolder ${req.body.subFolderName} created inside ${req.params[0]}.` });
@@ -100,23 +100,23 @@ app.post('/create-subfolder/:id/*', authenticateJWT, (req, res) => {
 
 app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
   const { id } = req.params;
-  const relativePath = req.params[0] || ''; // Capture le chemin après /add/:id/ (ou vide si non fourni)
-  const folderPath = path.join(BASE_DIR, id, relativePath); // Assure que tout commence dans le dossier de l'utilisateur
+  const relativePath = req.params[0] || ''; // Capture the path after /add/:id/ (or empty if not provided)
+  const folderPath = path.join(BASE_DIR, id, relativePath); // Ensure everything starts in the user's folder
 
   
   if (req.user.userId !== id || !allowed.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to modify this folder' });
   }
 
-  // Vérifier si le dossier cible existe
+  // Check if the target folder exists
   if (!fs.existsSync(folderPath)) {
-    fs.mkdirSync(folderPath, { recursive: true }); // ✅ Crée tous les sous-dossiers manquants
+    fs.mkdirSync(folderPath, { recursive: true }); // ✅ Create all missing subfolders
   }
 
   if (req.file) {
-    // Cas : Un fichier est envoyé -> On l'ajoute au dossier
+    // Case: A file is sent -> Add it to the folder
     const filePath = path.join(folderPath, `${req.file.originalname}.gz`);
-    console.log(`📝 Compression de ${req.file.originalname} -> ${filePath}`);
+    console.log(`📝 Compressing ${req.file.originalname} -> ${filePath}`);
 
     const fileContents = fs.createReadStream(req.file.path);
     const writeStream = fs.createWriteStream(filePath);
@@ -125,8 +125,8 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
     fileContents.pipe(gzip).pipe(writeStream);
 
     writeStream.on('finish', () => {
-        console.log(`✅ Fichier compressé et sauvegardé : ${filePath}`);
-        fs.unlinkSync(req.file.path); // Supprime le fichier temporaire
+        console.log(`✅ File compressed and saved: ${filePath}`);
+        fs.unlinkSync(req.file.path); // Delete the temporary file
         res.json({
             message: `File ${req.file.originalname} uploaded and compressed.`,
             storedAs: path.basename(filePath)
@@ -134,7 +134,7 @@ app.post('/add/:id/*', authenticateJWT, upload.single('file'), (req, res) => {
     });
 
     writeStream.on('error', (err) => {
-        console.error('❌ Erreur lors de la compression :', err);
+        console.error('❌ Error during compression:', err);
         res.status(500).json({ error: 'Error compressing file' });
     });
   } else {
@@ -156,7 +156,7 @@ app.post('/upload/:id', authenticateJWT, upload.single('file'), (req, res) => {
 // 📄 **List files**
 app.get('/list/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
-  const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+  const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Use the * parameter to get the full path
   const allowed = getAllowedFolders(req.user.userId);
 
   if (req.user.userId !== id || !allowed.includes(id)) {
@@ -174,30 +174,30 @@ app.get('/list/:id/*', authenticateJWT, (req, res) => {
 // ⬇️ **Download a file**
 app.get('/download/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
-  let filePath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+  let filePath = path.join(BASE_DIR, id, req.params[0]);  // Use the * parameter to get the full path
   const allowed = getAllowedFolders(req.user.userId);
 
   if (req.user.userId !== id || !allowed.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to download this file' });
   }
 
-  console.log(`🔍 Recherche du fichier : ${filePath}`);
+  console.log(`🔍 Searching for the file: ${filePath}`);
 
-    // Vérifier si le fichier compressé existe
+    // Check if the compressed file exists
     if (!fs.existsSync(filePath)) {
-        filePath += '.gz'; // Ajoute l'extension .gz si absente
-        console.log(`🔄 Tentative avec fichier compressé : ${filePath}`);
+        filePath += '.gz'; // Add the .gz extension if absent
+        console.log(`🔄 Attempting with compressed file: ${filePath}`);
     }
 
     if (!fs.existsSync(filePath)) {
-        console.error(`❌ Fichier introuvable : ${filePath}`);
+        console.error(`❌ File not found: ${filePath}`);
         return res.status(404).json({ error: 'File not found', filePath: filePath });
     }
     const originalFileName = path.basename(filePath, '.gz');
-    console.log(`📤 Décompression et envoi du fichier : ${filePath}`);
+    console.log(`📤 Decompressing and sending the file: ${filePath}`);
     const mimeType = mime.lookup(originalFileName) || 'application/octet-stream';
 
-    // Décompression du fichier (GZIP)
+    // Decompress the file (GZIP)
     res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
     res.setHeader('Content-Type', mimeType);
     const compressedFile = fs.createReadStream(filePath);
@@ -210,7 +210,7 @@ app.get('/download/:id/*', authenticateJWT, (req, res) => {
 // 🚮 **Delete a folder** (only for admins or user's own folders)
 app.delete('/delete-folder/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
-  const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Utilise le paramètre * pour obtenir le chemin complet
+  const folderPath = path.join(BASE_DIR, id, req.params[0]);  // Use the * parameter to get the full path
 
   if (req.user.userId !== id && !isAdmin(req.user)) {
     return res.status(403).json({ error: 'Unauthorized to delete this folder' });
@@ -220,7 +220,7 @@ app.delete('/delete-folder/:id/*', authenticateJWT, (req, res) => {
     return res.status(404).json({ error: 'Folder not found' });
   }
 
-  // Supprime le dossier, y compris son contenu
+  // Delete the folder, including its contents
   try {
     fs.rmdirSync(folderPath, { recursive: true });
     return res.status(200).json({ message: `Folder ${path.basename(folderPath)} deleted.` });
@@ -229,23 +229,23 @@ app.delete('/delete-folder/:id/*', authenticateJWT, (req, res) => {
   }
 });
 
-// Route pour supprimer un fichier dans un dossier spécifique
+// Route to delete a file in a specific folder
 app.delete('/delete-file/:id/*', authenticateJWT, (req, res) => {
   const { id } = req.params;
-  const filePath = path.join(BASE_DIR, id, req.params[0]); // Utilise le paramètre * pour obtenir le chemin complet
+  const filePath = path.join(BASE_DIR, id, req.params[0]); // Use the * parameter to get the full path
 
-  // Vérification si l'utilisateur a accès au dossier const allowed = getAllowedFolders(req.user.userId);
+  // Check if the user has access to the folder const allowed = getAllowedFolders(req.user.userId);
 
   if (req.user.userId !== id || !allowed.includes(id)) {
     return res.status(403).json({ error: 'Unauthorized to delete this file' });
   }
 
-  // Vérification si le fichier existe
+  // Check if the file exists
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
 
-  // Suppression du fichier
+  // Delete the file
   try {
     fs.unlinkSync(filePath);
     return res.status(200).json({ message: `File ${path.basename(filePath)} deleted.` });

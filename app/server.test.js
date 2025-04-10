@@ -14,11 +14,11 @@ beforeAll(async () => {
   await register('testuser', 'testpassword');
   users['testuser'].allowedFolders.push('testuser');
 
-  // Création du dossier de base
+  // Create the base folder
   const userDir = path.join(BASE_DIR, 'testuser', 'assets');
   fs.mkdirSync(userDir, { recursive: true });
 
-  // Création d'un fichier de test
+  // Create a test file
   fs.writeFileSync(path.join(userDir, 'file.txt'), 'Hello World');
 });
 
