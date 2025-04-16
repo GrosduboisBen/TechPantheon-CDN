@@ -8,6 +8,7 @@ const multer = require('multer');
 const { register, login, authenticateJWT, users, isAdmin } = require('./auth');
 const zlib = require('zlib');
 const mime = require('mime-types');
+const { getAllowedFolders } = require('./db');
 
 
 const app = express();
