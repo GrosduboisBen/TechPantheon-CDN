@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const cors = require('cors');
 
 const fs = require('fs');
 const path = require('path');
@@ -13,7 +14,10 @@ const app = express();
 const BASE_DIR = path.join(__dirname, 'cdn-assets');
 
 app.use(express.json());
-
+app.use(cors({
+  origin: 'http://localhost:4200',
+  credentials: true // si tu utilises des cookies ou des headers d'auth
+}));
 // Ensure base directory exists
 if (!fs.existsSync(BASE_DIR)) {
   fs.mkdirSync(BASE_DIR, { recursive: true });
